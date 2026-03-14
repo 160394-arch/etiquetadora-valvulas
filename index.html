@@ -1,0 +1,652 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Etiquetadora — Monitor de Válvulas</title>
+<link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&family=Barlow:wght@300;400;500&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+  :root {
+    --bg:#0a0e14; --bg2:#111720; --bg3:#1a2333;
+    --border:#1e2d42; --border2:#2a3d57;
+    --text:#c8d8e8; --text2:#7a92aa; --text3:#3a5268;
+    --accent:#00aaff;
+    --green:#22c55e; --green-bg:rgba(34,197,94,0.15); --green-border:rgba(34,197,94,0.4);
+    --yellow:#f59e0b; --yellow-bg:rgba(245,158,11,0.15); --yellow-border:rgba(245,158,11,0.4);
+    --red:#ef4444; --red-bg:rgba(239,68,68,0.15); --red-border:rgba(239,68,68,0.4);
+    --gray:#2a3d57; --gray-border:#3a5268;
+  }
+  *{margin:0;padding:0;box-sizing:border-box;}
+  body{background:var(--bg);color:var(--text);font-family:'Barlow',sans-serif;min-height:100vh;overflow-x:hidden;}
+  body::before{content:'';position:fixed;inset:0;background-image:repeating-linear-gradient(0deg,transparent,transparent 39px,rgba(0,170,255,0.015) 40px);pointer-events:none;z-index:0;}
+
+  /* NOTA SUPERIOR */
+  .top-note{
+    background:rgba(0,170,255,0.07);
+    border-bottom:1px solid rgba(0,170,255,0.2);
+    padding:7px 28px;
+    font-size:12px;color:var(--text2);
+    display:flex;align-items:center;gap:8px;
+    font-family:'JetBrains Mono',monospace;
+    position:relative;z-index:99;
+  }
+  .top-note strong{color:var(--accent);}
+  .note-icon{color:var(--accent);font-size:14px;flex-shrink:0;}
+
+  /* HEADER */
+  header{
+    position:sticky;top:0;z-index:100;
+    background:rgba(10,14,20,0.96);
+    backdrop-filter:blur(12px);
+    border-bottom:1px solid var(--border);
+    padding:0 28px;
+    display:flex;align-items:center;gap:12px;height:58px;
+  }
+  .logo{font-family:'Rajdhani',sans-serif;font-size:19px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--accent);}
+  .logo span{color:var(--text2);font-weight:400;}
+  .divider{width:1px;height:24px;background:var(--border);}
+  .stat-pill{display:flex;align-items:center;gap:6px;font-family:'JetBrains Mono',monospace;font-size:11px;padding:4px 12px;border-radius:20px;border:1px solid;}
+  .stat-pill.green{background:var(--green-bg);border-color:var(--green-border);color:var(--green);}
+  .stat-pill.yellow{background:var(--yellow-bg);border-color:var(--yellow-border);color:var(--yellow);}
+  .stat-pill.red{background:var(--red-bg);border-color:var(--red-border);color:var(--red);}
+  .dot{width:7px;height:7px;border-radius:50%;background:currentColor;}
+
+  .btn-sap{
+    margin-left:auto;
+    display:flex;align-items:center;gap:7px;
+    font-family:'Rajdhani',sans-serif;font-size:13px;font-weight:700;
+    letter-spacing:1.5px;text-transform:uppercase;
+    padding:8px 16px;border-radius:6px;
+    background:transparent;border:1px solid #1a7a3a;
+    color:#22c55e;cursor:pointer;transition:all .2s;
+  }
+  .btn-sap:hover{background:rgba(34,197,94,0.1);border-color:#22c55e;}
+
+  .btn-update{
+    display:flex;align-items:center;gap:8px;
+    font-family:'Rajdhani',sans-serif;font-size:13px;font-weight:700;
+    letter-spacing:1.5px;text-transform:uppercase;
+    padding:8px 20px;border-radius:6px;
+    background:var(--accent);border:none;color:#fff;cursor:pointer;transition:all .2s;
+  }
+  .btn-update:hover{background:#0088cc;}
+
+  .file-info{
+    font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--text3);
+    padding:6px 28px;border-bottom:1px solid var(--border);background:var(--bg2);
+    display:flex;align-items:center;gap:8px;
+  }
+  .file-info span{color:var(--text2);}
+  #lastUpdate{color:var(--accent);}
+
+  /* MAIN */
+  .main{display:grid;grid-template-columns:1fr 340px;min-height:calc(100vh - 114px);position:relative;z-index:1;}
+
+  /* CÍRCULO */
+  .circle-panel{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:40px 20px;border-right:1px solid var(--border);}
+  .circle-title{font-family:'Rajdhani',sans-serif;font-size:11px;font-weight:600;letter-spacing:3px;text-transform:uppercase;color:var(--text3);margin-bottom:28px;}
+  .circle-wrapper{position:relative;width:520px;height:520px;}
+  .circle-center{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:140px;height:140px;border-radius:50%;border:1px solid var(--border2);background:var(--bg2);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;}
+  .circle-center-name{font-family:'Rajdhani',sans-serif;font-size:13px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--text2);}
+  .circle-center-sub{font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--text3);}
+  .circle-center-count{font-family:'JetBrains Mono',monospace;font-size:22px;font-weight:500;color:var(--accent);margin-top:4px;}
+  .circle-center-label{font-size:10px;color:var(--text3);}
+
+  /* VÁLVULA */
+  .valve{position:absolute;width:34px;height:34px;border-radius:50%;border:2px solid;display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;transition:all .2s;transform:translate(-50%,-50%);}
+  .valve:hover{transform:translate(-50%,-50%) scale(1.18);z-index:10;}
+  .valve.selected{transform:translate(-50%,-50%) scale(1.22);z-index:20;box-shadow:0 0 0 3px rgba(0,170,255,0.4);}
+  .valve.green{background:var(--green-bg);border-color:var(--green);}
+  .valve.yellow{background:var(--yellow-bg);border-color:var(--yellow);}
+  .valve.red{background:var(--red-bg);border-color:var(--red);}
+  .valve.nodata{background:var(--bg3);border-color:var(--gray-border);}
+  @keyframes pulse-red{0%,100%{box-shadow:0 0 0 0 rgba(239,68,68,0.5);}50%{box-shadow:0 0 0 6px rgba(239,68,68,0);}}
+  .valve.red{animation:pulse-red 1.8s ease-in-out infinite;}
+  .valve.red.selected{animation:none;}
+  .valve-num{font-family:'JetBrains Mono',monospace;font-size:8px;font-weight:500;line-height:1;}
+  .valve.green .valve-num{color:var(--green);}
+  .valve.yellow .valve-num{color:var(--yellow);}
+  .valve.red .valve-num{color:var(--red);}
+  .valve.nodata .valve-num{color:var(--text3);}
+  .valve-fallas{font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:600;line-height:1;margin-top:1px;}
+  .valve.green .valve-fallas{color:var(--green);}
+  .valve.yellow .valve-fallas{color:var(--yellow);}
+  .valve.red .valve-fallas{color:var(--red);}
+  .valve.nodata .valve-fallas{color:var(--text3);}
+
+  /* PANEL DERECHO */
+  .info-panel{background:var(--bg2);display:flex;flex-direction:column;overflow:hidden;}
+  .info-header{padding:14px 20px;border-bottom:1px solid var(--border);font-family:'Rajdhani',sans-serif;font-size:11px;font-weight:600;letter-spacing:2px;text-transform:uppercase;color:var(--text3);}
+  .empty-state{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;color:var(--text3);padding:40px;text-align:center;}
+  .empty-icon{width:44px;height:44px;border-radius:50%;border:1px dashed var(--border2);display:flex;align-items:center;justify-content:center;font-size:18px;}
+  .empty-state p{font-size:13px;line-height:1.6;}
+
+  .valve-detail{flex:1;overflow-y:auto;display:none;flex-direction:column;}
+  .valve-detail.active{display:flex;}
+
+  .detail-hero{padding:20px;border-bottom:1px solid var(--border);}
+  .status-badge{display:inline-flex;align-items:center;gap:6px;font-family:'JetBrains Mono',monospace;font-size:10px;padding:3px 10px;border-radius:3px;margin-bottom:10px;border:1px solid;}
+  .status-badge.green{background:var(--green-bg);color:var(--green);border-color:var(--green-border);}
+  .status-badge.yellow{background:var(--yellow-bg);color:var(--yellow);border-color:var(--yellow-border);}
+  .status-badge.red{background:var(--red-bg);color:var(--red);border-color:var(--red-border);}
+  .status-badge.nodata{background:var(--bg3);color:var(--text3);border-color:var(--border);}
+  .detail-name{font-family:'Rajdhani',sans-serif;font-size:26px;font-weight:700;color:#fff;line-height:1;margin-bottom:4px;}
+  .detail-sub{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--text3);}
+
+  .metrics-grid{display:grid;grid-template-columns:1fr 1fr;gap:1px;background:var(--border);border-bottom:1px solid var(--border);}
+  .metric-cell{background:var(--bg2);padding:14px 18px;}
+  .metric-label{font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;font-family:'Rajdhani',sans-serif;margin-bottom:4px;}
+  .metric-value{font-family:'JetBrains Mono',monospace;font-size:22px;font-weight:500;color:#fff;}
+  .metric-value.green{color:var(--green);}
+  .metric-value.yellow{color:var(--yellow);}
+  .metric-value.red{color:var(--red);}
+
+  .detail-body{padding:12px 20px;}
+  .detail-row{display:flex;justify-content:space-between;align-items:center;padding:7px 0;border-bottom:1px solid var(--border);gap:12px;}
+  .detail-row:last-child{border-bottom:none;}
+  .detail-key{color:var(--text2);font-size:12px;flex-shrink:0;}
+  .detail-val{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--text);text-align:right;}
+  .detail-val.green{color:var(--green);}
+  .detail-val.yellow{color:var(--yellow);}
+  .detail-val.red{color:var(--red);}
+
+  /* HISTORIAL DE AVISOS */
+  .avisos-section{padding:12px 20px;border-top:1px solid var(--border);flex:1;overflow-y:auto;}
+  .avisos-title{font-family:'Rajdhani',sans-serif;font-size:11px;font-weight:600;letter-spacing:2px;text-transform:uppercase;color:var(--text3);margin-bottom:10px;}
+  .aviso-item{padding:8px 10px;border-radius:5px;border:1px solid var(--border);margin-bottom:6px;background:var(--bg3);}
+  .aviso-tags{display:flex;gap:6px;margin-bottom:5px;flex-wrap:wrap;}
+  .aviso-tag{font-family:'JetBrains Mono',monospace;font-size:9px;font-weight:600;padding:2px 7px;border-radius:3px;letter-spacing:0.5px;}
+  .tag-aviso{background:rgba(0,170,255,0.12);color:var(--accent);border:1px solid rgba(0,170,255,0.25);}
+  .tag-orden{background:rgba(245,158,11,0.12);color:var(--yellow);border:1px solid rgba(245,158,11,0.25);}
+  .aviso-desc{font-size:12px;color:var(--text);line-height:1.5;margin-bottom:3px;}
+  .aviso-meta{font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--text3);}
+  .aviso-empty{font-size:12px;color:var(--text3);padding:8px 0;}
+
+  /* RESUMEN */
+  .summary-section{padding:12px 20px;border-top:1px solid var(--border);}
+  .summary-title{font-family:'Rajdhani',sans-serif;font-size:11px;font-weight:600;letter-spacing:2px;text-transform:uppercase;color:var(--text3);margin-bottom:8px;}
+  .summary-list{display:flex;flex-direction:column;gap:4px;max-height:180px;overflow-y:auto;}
+  .summary-item{display:flex;align-items:center;gap:8px;padding:5px 8px;border-radius:4px;cursor:pointer;transition:background .15s;font-size:12px;}
+  .summary-item:hover{background:var(--bg3);}
+  .summary-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;}
+  .summary-dot.green{background:var(--green);}
+  .summary-dot.yellow{background:var(--yellow);}
+  .summary-dot.red{background:var(--red);}
+  .summary-name{flex:1;color:var(--text2);font-family:'JetBrains Mono',monospace;font-size:10px;}
+  .summary-count{font-family:'JetBrains Mono',monospace;font-size:10px;}
+  .summary-count.green{color:var(--green);}
+  .summary-count.yellow{color:var(--yellow);}
+  .summary-count.red{color:var(--red);}
+
+  .toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(80px);background:var(--bg3);border:1px solid var(--border2);color:var(--text);padding:10px 20px;border-radius:6px;font-family:'JetBrains Mono',monospace;font-size:12px;z-index:999;transition:transform .3s ease;display:flex;align-items:center;gap:8px;}
+  .toast.show{transform:translateX(-50%) translateY(0);}
+  .toast.success{border-color:var(--green-border);color:var(--green);}
+  .toast.error{border-color:var(--red-border);color:var(--red);}
+
+  .legend{display:flex;gap:20px;align-items:center;padding:10px 28px;border-top:1px solid var(--border);font-size:12px;color:var(--text2);background:var(--bg2);position:sticky;bottom:0;z-index:10;}
+  .legend-item{display:flex;align-items:center;gap:7px;}
+  .legend-dot{width:10px;height:10px;border-radius:50%;}
+
+  ::-webkit-scrollbar{width:4px;}
+  ::-webkit-scrollbar-track{background:transparent;}
+  ::-webkit-scrollbar-thumb{background:var(--border2);border-radius:2px;}
+</style>
+</head>
+<body>
+
+<!-- NOTA SUPERIOR -->
+<div class="top-note">
+  <span class="note-icon">ℹ</span>
+  Para mantener actualizada la data se debe crear avisos con la etiqueta
+  <strong>ETIQ_VAL(N° de válvula)</strong> — Ejemplo: <strong>ETIQ_VAL7</strong>, <strong>ETIQ_VAL34</strong>
+</div>
+
+<header>
+  <div class="logo">Etiqueta<span>dora</span></div>
+  <div class="divider"></div>
+  <div style="font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--text3)">MONITOR DE VÁLVULAS</div>
+  <div class="stat-pill green"><div class="dot"></div><span id="countGreen">—</span> SIN FALLAS</div>
+  <div class="stat-pill yellow"><div class="dot"></div><span id="countYellow">—</span> ALERTA</div>
+  <div class="stat-pill red"><div class="dot"></div><span id="countRed">—</span> CRÍTICO</div>
+  <button class="btn-sap" onclick="window.open('https://azuevp04.modelo.gmodelo.com.mx/irj/portal?NavigationTarget=navurl://334834ed11204abf6f9fb249edec621b&NavMode=10&sap-ie=EDGE','_blank')">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:13px;height:13px"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+    SAP
+  </button>
+  <button class="btn-update" onclick="triggerFileLoad()">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:15px;height:15px"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+    ACTUALIZAR DATA
+  </button>
+  <input type="file" id="fileInput" accept=".xlsx,.xlsm,.xls" style="display:none" onchange="loadExcel(this)">
+</header>
+
+<div class="file-info">
+  <span>ARCHIVO:</span> BASE_MANTENIMIENTO.xlsm
+  <span style="margin:0 4px">|</span>
+  <span>HOJA:</span> Tablas → Etiq_Val &nbsp;+&nbsp; Data → Valvulas
+  <span style="margin:0 4px">|</span>
+  <span>ÚLTIMA ACTUALIZACIÓN:</span> <span id="lastUpdate">Sin cargar</span>
+  <span style="margin:0 4px">|</span>
+  <span>NUBE:</span> <span id="cloudStatus" style="color:var(--accent)">Conectando...</span>
+</div>
+
+<div class="main">
+  <!-- CÍRCULO -->
+  <div class="circle-panel">
+    <div class="circle-title">Distribución circular — 50 válvulas etiquetadora</div>
+    <div class="circle-wrapper" id="circleWrapper">
+      <div class="circle-center">
+        <div class="circle-center-name">ETIQ.</div>
+        <div class="circle-center-sub">MÁQ-ETQ-001</div>
+        <div class="circle-center-count" id="totalFallas">—</div>
+        <div class="circle-center-label">fallas totales</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- PANEL INFO -->
+  <div class="info-panel">
+    <div class="info-header">Detalle de válvula</div>
+    <div class="empty-state" id="emptyState">
+      <div class="empty-icon">⊙</div>
+      <p>Haz clic en cualquier<br>válvula del diagrama<br>para ver su detalle</p>
+      <p style="margin-top:12px;font-size:11px">Presiona <strong style="color:var(--accent)">ACTUALIZAR DATA</strong><br>para cargar desde Excel</p>
+    </div>
+    <div class="valve-detail" id="valveDetail"></div>
+    <div class="summary-section" id="summarySection" style="display:none">
+      <div class="summary-title">Válvulas con fallas</div>
+      <div class="summary-list" id="summaryList"></div>
+    </div>
+  </div>
+</div>
+
+<div class="legend">
+  <div class="legend-item"><div class="legend-dot" style="background:var(--green)"></div>0 fallas — OK</div>
+  <div class="legend-item"><div class="legend-dot" style="background:var(--yellow)"></div>1-3 fallas — Alerta</div>
+  <div class="legend-item"><div class="legend-dot" style="background:var(--red)"></div>+3 fallas — Crítico</div>
+  <div style="margin-left:auto;font-size:11px;color:var(--text3)">BASE_MANTENIMIENTO.xlsm → Tablas → Etiq_Val</div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+// =============================================
+// CONFIGURACIÓN JSONBIN
+// =============================================
+const JSONBIN_KEY = '$2a$10$/MU1sxM.cUMVo/iddc1jj.4acRhIELSK9BvGOVNV2KL611M2TS0Q6';
+const JSONBIN_BASE = 'https://api.jsonbin.io/v3/b';
+let BIN_ID = localStorage.getItem('etiq_bin_id') || '69b587d2b7ec241ddc6a89d7';
+
+async function guardarEnNube(payload) {
+  try {
+    document.getElementById('cloudStatus').textContent = 'Guardando...';
+    if (!BIN_ID) {
+      const res = await fetch(JSONBIN_BASE, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Master-Key': JSONBIN_KEY,
+          'X-Bin-Name': 'etiquetadora-valvulas',
+          'X-Bin-Private': 'false'
+        },
+        body: JSON.stringify(payload)
+      });
+      if (!res.ok) throw new Error('Error HTTP ' + res.status);
+      const data = await res.json();
+      BIN_ID = data.metadata.id;
+      localStorage.setItem('etiq_bin_id', BIN_ID);
+    } else {
+      const res = await fetch(`${JSONBIN_BASE}/${BIN_ID}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Master-Key': JSONBIN_KEY
+        },
+        body: JSON.stringify(payload)
+      });
+      if (!res.ok) throw new Error('Error HTTP ' + res.status);
+    }
+    document.getElementById('cloudStatus').textContent = '✓ Publicado';
+    showToast('✓ Data publicada — los técnicos ya pueden verla', 'success');
+  } catch(err) {
+    document.getElementById('cloudStatus').textContent = 'Error al guardar';
+    showToast('Error al guardar en nube: ' + err.message, 'error');
+  }
+}
+
+async function cargarDesdeNube() {
+  try {
+    document.getElementById('cloudStatus').textContent = 'Conectando...';
+    const binId = '69b587d2b7ec241ddc6a89d7';
+
+    const res = await fetch(`${JSONBIN_BASE}/${binId}/latest`, {
+      method: 'GET',
+      headers: {
+        'X-Master-Key': JSONBIN_KEY,
+        'X-Bin-Meta': 'false'
+      }
+    });
+
+    if (!res.ok) {
+      document.getElementById('cloudStatus').textContent = 'Error ' + res.status;
+      return;
+    }
+
+    const payload = await res.json();
+
+    if (!payload || !payload.valvulas) {
+      document.getElementById('cloudStatus').textContent = 'Sin data aún';
+      return;
+    }
+
+    valvulas = payload.valvulas;
+    avisosData = payload.avisosData || [];
+
+    renderCircle();
+    document.getElementById('lastUpdate').textContent = payload.fechaActualizacion || '—';
+    document.getElementById('cloudStatus').textContent = '✓ Actualizado';
+    showToast('✓ Data cargada · ' + (payload.fechaActualizacion || ''), 'success');
+
+  } catch(err) {
+    document.getElementById('cloudStatus').textContent = 'Sin conexión';
+    console.error('JSONbin error:', err);
+  }
+}
+
+// =============================================
+// DATOS EN MEMORIA
+// =============================================
+let valvulas = [];
+let avisosData = [];
+
+for(let i=1;i<=50;i++){
+  valvulas.push({id:`ETIQ_VAL${i}`,fallas:0,loaded:false});
+}
+
+// ---- CÍRCULO ----
+function renderCircle(){
+  const wrapper=document.getElementById('circleWrapper');
+  wrapper.querySelectorAll('.valve').forEach(v=>v.remove());
+  const cx=260,cy=260,r=220,total=valvulas.length;
+  valvulas.forEach((v,i)=>{
+    const angle=(i/total)*2*Math.PI - Math.PI/2;
+    const x=cx+r*Math.cos(angle), y=cy+r*Math.sin(angle);
+    const estado=getEstado(v.fallas,v.loaded);
+    const el=document.createElement('div');
+    el.className=`valve ${estado}`;
+    el.id=`valve_${i}`;
+    el.style.left=x+'px'; el.style.top=y+'px';
+    el.innerHTML=`<div class="valve-num">${(i+1).toString().padStart(2,'0')}</div><div class="valve-fallas">${v.loaded?v.fallas:'—'}</div>`;
+    el.onclick=()=>selectValve(i);
+    wrapper.appendChild(el);
+  });
+  updateStats();
+}
+
+function getEstado(f,loaded){
+  if(!loaded) return 'nodata';
+  if(f===0) return 'green';
+  if(f<=3) return 'yellow';
+  return 'red';
+}
+function getLabel(f,loaded){
+  if(!loaded) return 'SIN DATA';
+  if(f===0) return 'SIN FALLAS';
+  if(f<=3) return 'ALERTA';
+  return 'CRÍTICO';
+}
+function getSector(i){
+  if(i<13) return 'Sector Norte';
+  if(i<25) return 'Sector Este';
+  if(i<38) return 'Sector Sur';
+  return 'Sector Oeste';
+}
+
+// ---- SELECCIONAR ----
+let selectedIdx=null;
+function selectValve(i){
+  document.querySelectorAll('.valve.selected').forEach(v=>v.classList.remove('selected'));
+  document.getElementById(`valve_${i}`)?.classList.add('selected');
+  selectedIdx=i;
+  const v=valvulas[i];
+  const estado=getEstado(v.fallas,v.loaded);
+  const label=getLabel(v.fallas,v.loaded);
+
+  document.getElementById('emptyState').style.display='none';
+  const detail=document.getElementById('valveDetail');
+  detail.classList.add('active');
+
+  // Buscar avisos de esta válvula en la hoja Data
+  // El Excel usa ETIQVAL_23, el sistema usa ETIQ_VAL23 — normalizamos ambos
+  const normalizar = s => String(s||'').trim().toUpperCase().replace(/[^A-Z0-9]/g,'');
+  const idNorm = normalizar(v.id);
+  const avisos = avisosData.filter(a => normalizar(a.etiq) === idNorm);
+
+  let avisosHTML = '';
+  if(avisos.length === 0){
+    avisosHTML = `<div class="aviso-empty">Sin avisos registrados para esta válvula</div>`;
+  } else {
+    avisos.forEach(a => {
+      avisosHTML += `<div class="aviso-item">
+        <div class="aviso-tags">
+          ${a.aviso ? `<span class="aviso-tag tag-aviso">Aviso: ${a.aviso}</span>` : ''}
+          ${a.orden ? `<span class="aviso-tag tag-orden">OT: ${a.orden}</span>` : ''}
+        </div>
+        <div class="aviso-desc">${a.desc || '—'}</div>
+        <div class="aviso-meta">${a.denom ? a.denom+' · ' : ''}${a.fecha||''}</div>
+      </div>`;
+    });
+  }
+
+  detail.innerHTML = `
+    <div class="detail-hero">
+      <div class="status-badge ${estado}">
+        <div style="width:5px;height:5px;border-radius:50%;background:currentColor;display:inline-block;margin-right:4px"></div>
+        ${label}
+      </div>
+      <div class="detail-name">${v.id}</div>
+      <div class="detail-sub">Posición ${i+1} de 50 · ${getSector(i)}</div>
+    </div>
+    <div class="metrics-grid">
+      <div class="metric-cell">
+        <div class="metric-label">Fallas</div>
+        <div class="metric-value ${estado}">${v.loaded?v.fallas:'—'}</div>
+      </div>
+      <div class="metric-cell">
+        <div class="metric-label">Estado</div>
+        <div class="metric-value ${estado}" style="font-size:14px">${label}</div>
+      </div>
+    </div>
+    <div class="detail-body">
+      <div class="detail-row">
+        <span class="detail-key">Etiqueta</span>
+        <span class="detail-val">${v.id}</span>
+      </div>
+      <div class="detail-row">
+        <span class="detail-key">Posición</span>
+        <span class="detail-val">${i+1} / 50</span>
+      </div>
+      <div class="detail-row">
+        <span class="detail-key">Cuadrante</span>
+        <span class="detail-val">${getSector(i)}</span>
+      </div>
+      <div class="detail-row">
+        <span class="detail-key">N° de fallas</span>
+        <span class="detail-val ${estado}">${v.loaded?v.fallas:'Sin datos'}</span>
+      </div>
+      <div class="detail-row">
+        <span class="detail-key">Semáforo</span>
+        <span class="detail-val ${estado}">${label}</span>
+      </div>
+    </div>
+    <div class="avisos-section">
+      <div class="avisos-title">Descripción de avisos (hoja Data)</div>
+      ${avisosHTML}
+    </div>
+  `;
+}
+
+// ---- STATS ----
+function updateStats(){
+  const loaded=valvulas.filter(v=>v.loaded);
+  document.getElementById('countGreen').textContent=loaded.filter(v=>v.fallas===0).length;
+  document.getElementById('countYellow').textContent=loaded.filter(v=>v.fallas>0&&v.fallas<=3).length;
+  document.getElementById('countRed').textContent=loaded.filter(v=>v.fallas>3).length;
+  const total=loaded.reduce((s,v)=>s+v.fallas,0);
+  document.getElementById('totalFallas').textContent=loaded.length>0?total:'—';
+
+  const conFallas=valvulas.filter(v=>v.loaded&&v.fallas>0).sort((a,b)=>b.fallas-a.fallas);
+  const ss=document.getElementById('summarySection');
+  const sl=document.getElementById('summaryList');
+  if(conFallas.length>0){
+    ss.style.display='block';
+    sl.innerHTML=conFallas.map(v=>{
+      const idx=valvulas.indexOf(v);
+      const e=getEstado(v.fallas,true);
+      return `<div class="summary-item" onclick="selectValve(${idx})">
+        <div class="summary-dot ${e}"></div>
+        <span class="summary-name">${v.id}</span>
+        <span class="summary-count ${e}">${v.fallas} falla${v.fallas!==1?'s':''}</span>
+      </div>`;
+    }).join('');
+  } else { ss.style.display='none'; }
+}
+
+// ---- CARGAR EXCEL ----
+function triggerFileLoad(){
+  showToast('Selecciona el archivo BASE_MANTENIMIENTO.xlsm...','info');
+  document.getElementById('fileInput').click();
+}
+
+function findHeaderRow(rawData, keywords, maxRows=15){
+  for(let r=0;r<Math.min(rawData.length,maxRows);r++){
+    const row=rawData[r];
+    let found=0;
+    for(const kw of keywords){
+      if(row.some(c=>String(c||'').toUpperCase().trim().includes(kw))) found++;
+    }
+    if(found===keywords.length) return r;
+  }
+  return 0;
+}
+
+function loadExcel(input){
+  const file=input.files[0];
+  if(!file) return;
+  const reader=new FileReader();
+  reader.onload=async function(e){
+    try{
+      const data=new Uint8Array(e.target.result);
+      const wb=XLSX.read(data,{type:'array',cellNF:false,cellStyles:false});
+
+      // ===== HOJA TABLAS → Etiq_Val =====
+      const sheetTablas=wb.SheetNames.find(s=>s.trim().toLowerCase()==='tablas')||
+                        wb.SheetNames.find(s=>s.trim().toLowerCase().includes('tabla'));
+      if(!sheetTablas){ showToast('No encontré hoja "Tablas"','error'); return; }
+
+      const rawTablas=XLSX.utils.sheet_to_json(wb.Sheets[sheetTablas],{header:1,defval:'',blankrows:false});
+      let hEtiq=-1, hFallas=-1, hRow=-1;
+      for(let r=0;r<Math.min(rawTablas.length,15);r++){
+        const row=rawTablas[r];
+        for(let c=0;c<row.length;c++){
+          const cell=String(row[c]||'').toUpperCase().trim();
+          if(cell==='ETIQ_VAL'||cell.includes('ETIQ')){ hEtiq=c; hRow=r; }
+          if(cell==='FALLAS'||cell.includes('FALLA')){ hFallas=c; hRow=r; }
+        }
+        if(hEtiq!==-1&&hFallas!==-1) break;
+      }
+      if(hEtiq===-1||hFallas===-1){ hEtiq=0; hFallas=1; hRow=0; }
+
+      valvulas=[];
+      for(let i=1;i<=50;i++) valvulas.push({id:`ETIQ_VAL${i}`,fallas:0,loaded:false});
+
+      let cargadas=0;
+      for(let r=hRow+1;r<rawTablas.length;r++){
+        const row=rawTablas[r];
+        if(!row||row.length===0) continue;
+        const etiqRaw=String(row[hEtiq]||'').trim();
+        if(!etiqRaw) continue;
+        const fallasRaw=row[hFallas];
+        const fallas=(fallasRaw===''||fallasRaw==null)?0:Math.max(0,parseInt(Number(fallasRaw))||0);
+        let idx=valvulas.findIndex(v=>v.id.toLowerCase()===etiqRaw.toLowerCase());
+        if(idx===-1){
+          const nm=etiqRaw.match(/(\d+)$/);
+          if(nm){ const n=parseInt(nm[1]); idx=valvulas.findIndex(v=>{const vm=v.id.match(/(\d+)$/);return vm&&parseInt(vm[1])===n;}); }
+        }
+        if(idx===-1&&cargadas<50){ idx=cargadas; valvulas[idx].id=etiqRaw; }
+        if(idx!==-1&&idx<50){ valvulas[idx].id=etiqRaw; valvulas[idx].fallas=fallas; valvulas[idx].loaded=true; cargadas++; }
+      }
+
+      // ===== HOJA DATA → Valvulas (col AL = ETIQ_VAL, col P = Descripción) =====
+      avisosData=[];
+      const sheetData=wb.SheetNames.find(s=>s.trim().toLowerCase()==='data')||
+                      wb.SheetNames.find(s=>s.trim().toLowerCase().includes('dat'));
+      if(sheetData){
+        const rawData=XLSX.utils.sheet_to_json(wb.Sheets[sheetData],{header:1,defval:'',blankrows:false});
+        // Buscar fila de encabezados con "ETIQ_VAL" y columna P (Descripción)
+        // ===== HOJA DATA → Valvulas (col O = Descripción, col AL = ETIQ_VAL) =====
+        let dRow=-1, colDesc=-1, colEtiqD=-1, colDenom=-1, colFecha=-1;
+        for(let r=0;r<Math.min(rawData.length,10);r++){
+          const row=rawData[r];
+          for(let c=0;c<row.length;c++){
+            const cell=String(row[c]||'').trim()
+              .normalize('NFD').replace(/[\u0300-\u036f]/g,'') // quitar tildes
+              .toUpperCase();
+            if(cell==='ETIQ_VAL'||cell==='ETIQVAL'){ colEtiqD=c; dRow=r; }
+            if(cell==='DESCRIPCION'||cell.startsWith('DESCRIP')){ colDesc=c; }
+            if(cell.includes('DENOMINA')||cell.includes('DENOMINACI')){ colDenom=c; }
+            if(cell==='CREADO EL'||cell.includes('FECHA')||cell.includes('CREADO')){ colFecha=c; }
+          }
+          if(colEtiqD!==-1&&colDesc!==-1) break;
+        }
+        // Fallback por posición: col O = índice 14 (0-based), col AL = índice 37
+        if(colEtiqD===-1) colEtiqD=37;
+        if(colDesc===-1)  colDesc=14;
+        if(dRow===-1)     dRow=0;
+
+        for(let r=dRow+1;r<rawData.length;r++){
+          const row=rawData[r];
+          if(!row||row.length===0) continue;
+          const etiq=String(row[colEtiqD]||'').trim();
+          if(!etiq) continue; // solo filas que tienen valor en columna AL
+          const desc=String(row[colDesc]||'').trim();
+          if(!desc) continue; // necesita descripción
+          const denom=colDenom!==-1?String(row[colDenom]||'').trim():'';
+          const fecha=colFecha!==-1?String(row[colFecha]||'').trim():'';
+          const aviso=String(row[0]||'').trim();   // columna A (índice 0)
+          const orden=String(row[13]||'').trim();  // columna N (índice 13)
+          avisosData.push({etiq,desc,denom,fecha,aviso,orden});
+        }
+      }
+
+      renderCircle();
+      const ahora=new Date().toLocaleString('es-PE',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit',second:'2-digit'});
+      document.getElementById('lastUpdate').textContent=ahora;
+      if(selectedIdx!==null) selectValve(selectedIdx);
+      const conFallas=valvulas.filter(v=>v.fallas>0).length;
+      showToast(`✓ ${cargadas} válvulas · ${conFallas} con fallas · ${avisosData.length} avisos cargados`,'success');
+      // Guardar en JSONbin para que técnicos vean la data
+      await guardarEnNube({ valvulas, avisosData, fechaActualizacion: ahora });
+    }catch(err){
+      showToast('Error: '+err.message,'error');
+      console.error(err);
+    }
+  };
+  reader.readAsArrayBuffer(file);
+  input.value='';
+}
+
+function showToast(msg,tipo='info'){
+  const t=document.getElementById('toast');
+  t.textContent=msg; t.className=`toast ${tipo} show`;
+  setTimeout(()=>t.classList.remove('show'),4000);
+}
+
+renderCircle();
+
+// ---- CARGA AUTOMÁTICA DESDE JSONBIN AL ABRIR LA PÁGINA ----
+window.addEventListener('load', () => {
+  cargarDesdeNube();
+});
+</script>
+</body>
+</html>
