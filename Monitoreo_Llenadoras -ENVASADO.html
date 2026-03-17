@@ -1,0 +1,1033 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Monitoreo Llenadoras</title>
+<link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&family=Barlow:wght@300;400;500&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+  :root {
+    --bg:#0a0e14; --bg2:#111720; --bg3:#1a2333;
+    --border:#1e2d42; --border2:#2a3d57;
+    --text:#c8d8e8; --text2:#7a92aa; --text3:#3a5268;
+    --accent:#00aaff;
+    --green:#22c55e; --green-bg:rgba(34,197,94,0.15); --green-border:rgba(34,197,94,0.4);
+    --yellow:#f59e0b; --yellow-bg:rgba(245,158,11,0.15); --yellow-border:rgba(245,158,11,0.4);
+    --red:#ef4444; --red-bg:rgba(239,68,68,0.15); --red-border:rgba(239,68,68,0.4);
+    --gray:#2a3d57; --gray-border:#3a5268;
+    --valvula:#00aaff; --rodillo:#a855f7; --poste:#f97316;
+  }
+  *{margin:0;padding:0;box-sizing:border-box;}
+  body{background:var(--bg);color:var(--text);font-family:'Barlow',sans-serif;min-height:100vh;overflow-x:hidden;}
+  body::before{content:'';position:fixed;inset:0;background-image:repeating-linear-gradient(0deg,transparent,transparent 39px,rgba(0,170,255,0.015) 40px);pointer-events:none;z-index:0;}
+
+  /* HEADER */
+  header{position:sticky;top:0;z-index:100;background:rgba(10,14,20,0.96);backdrop-filter:blur(12px);border-bottom:1px solid var(--border);padding:0 28px;display:flex;align-items:center;gap:12px;height:66px;}
+  .logo{font-family:'Rajdhani',sans-serif;font-size:0;font-weight:700;letter-spacing:1px;text-transform:uppercase;line-height:1;}
+  .logo .logo-monitor{font-size:13px;color:var(--text2);font-weight:500;letter-spacing:3px;display:block;}
+  .logo .logo-de{font-size:11px;color:var(--text3);font-weight:400;letter-spacing:2px;display:block;margin:-1px 0;}
+  .logo .logo-llen{font-size:22px;color:var(--accent);font-weight:700;letter-spacing:3px;display:block;line-height:1;}
+  .logo span{color:var(--text2);font-weight:400;}
+  /* Botones Llenadora */
+  .btn-llenadora{font-family:'Rajdhani',sans-serif;font-size:12px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;padding:6px 14px;border-radius:6px;cursor:pointer;transition:all .2s;border:2px solid;}
+  .btn-llenadora.ll1{background:rgba(0,170,255,0.1);border-color:rgba(0,170,255,0.5);color:var(--accent);}
+  .btn-llenadora.ll1.active{background:var(--accent);color:#fff;border-color:var(--accent);box-shadow:0 0 12px rgba(0,170,255,0.4);}
+  .btn-llenadora.ll2{background:rgba(168,85,247,0.1);border-color:rgba(168,85,247,0.5);color:var(--rodillo);}
+  .btn-llenadora.ll2.active{background:var(--rodillo);color:#fff;border-color:var(--rodillo);box-shadow:0 0 12px rgba(168,85,247,0.4);}
+  .btn-llenadora:hover{filter:brightness(1.15);}
+  .divider{width:1px;height:24px;background:var(--border);}
+
+  .ring-pill{display:flex;align-items:center;gap:6px;font-family:'JetBrains Mono',monospace;font-size:10px;padding:3px 10px;border-radius:20px;border:1px solid;}
+  .ring-pill.v{background:rgba(0,170,255,0.1);border-color:rgba(0,170,255,0.4);color:var(--valvula);}
+  .ring-pill.r{background:rgba(168,85,247,0.1);border-color:rgba(168,85,247,0.4);color:var(--rodillo);}
+  .ring-pill.p{background:rgba(249,115,22,0.1);border-color:rgba(249,115,22,0.4);color:var(--poste);}
+  .ring-dot{width:7px;height:7px;border-radius:50%;background:currentColor;}
+
+  .stat-pill{display:flex;align-items:center;gap:6px;font-family:'JetBrains Mono',monospace;font-size:11px;padding:4px 12px;border-radius:20px;border:1px solid;}
+  .stat-pill.green{background:var(--green-bg);border-color:var(--green-border);color:var(--green);}
+  .stat-pill.yellow{background:var(--yellow-bg);border-color:var(--yellow-border);color:var(--yellow);}
+  .stat-pill.red{background:var(--red-bg);border-color:var(--red-border);color:var(--red);}
+  .dot{width:7px;height:7px;border-radius:50%;background:currentColor;}
+
+  .btn-sap{margin-left:auto;display:flex;align-items:center;gap:7px;font-family:'Rajdhani',sans-serif;font-size:13px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;padding:8px 16px;border-radius:6px;background:transparent;border:1px solid #1a7a3a;color:#22c55e;cursor:pointer;transition:all .2s;}
+  .btn-sap:hover{background:rgba(34,197,94,0.1);border-color:#22c55e;}
+  .btn-update{display:flex;align-items:center;gap:8px;font-family:'Rajdhani',sans-serif;font-size:13px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;padding:8px 20px;border-radius:6px;background:var(--accent);border:none;color:#fff;cursor:pointer;transition:all .2s;}
+  .btn-update:hover{background:#0088cc;}
+
+  .file-info{font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--text3);padding:6px 28px;border-bottom:1px solid var(--border);background:var(--bg2);display:flex;align-items:center;gap:8px;}
+  .file-info span{color:var(--text2);}
+  #lastUpdate{color:var(--accent);}
+
+  /* MAIN */
+  .main{display:grid;grid-template-columns:1fr 360px;min-height:calc(100vh - 114px);position:relative;z-index:1;}
+
+  /* CÍRCULO */
+  .circle-panel{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:30px 180px;border-right:1px solid var(--border);background:#ffffff;}
+  .circle-panel .circle-title{color:#333;}
+  .circle-panel .ring-label{color:#222;}
+  .circle-panel .ring-label span{color:#222 !important;}
+  .circle-panel .ring-label-dot.vl{border-color:var(--valvula);}
+  .circle-panel .ring-label-dot.ro{border-color:var(--rodillo);}
+  .circle-panel .ring-label-dot.po{border-color:var(--poste);}
+  .circle-title{font-family:'Rajdhani',sans-serif;font-size:11px;font-weight:600;letter-spacing:3px;text-transform:uppercase;color:var(--text3);margin-bottom:20px;}
+
+  /* Ring labels row */
+  .ring-labels{display:flex;gap:24px;align-items:center;margin-bottom:16px;}
+  .ring-label{display:flex;align-items:center;gap:7px;font-family:'JetBrains Mono',monospace;font-size:10px;}
+  .ring-label-dot{width:10px;height:10px;border-radius:50%;border:2px solid;}
+  .ring-label-dot.vl{border-color:var(--valvula);background:rgba(0,170,255,0.15);}
+  .ring-label-dot.ro{border-color:var(--rodillo);background:rgba(168,85,247,0.15);}
+  .ring-label-dot.po{border-color:var(--poste);background:rgba(249,115,22,0.15);}
+
+  .circle-wrapper{position:relative;width:780px;height:780px;}
+
+  /* Center */
+  .circle-center{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:130px;height:130px;border-radius:50%;border:2px solid rgba(0,170,255,0.4);background:#0d1826;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;transition:border-color .3s;box-shadow:0 0 20px rgba(0,170,255,0.15);}
+  .circle-center-name{font-family:'Rajdhani',sans-serif;font-size:14px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--text2);}
+  .circle-center-sub{font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--text3);}
+  .circle-center-count{font-family:'JetBrains Mono',monospace;font-size:26px;font-weight:500;color:var(--accent);margin-top:1px;transition:all .2s;}
+  .circle-center-label{font-size:10px;color:var(--text3);letter-spacing:0.5px;}
+
+  /* Ring separators (SVG) */
+  .ring-svg{position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;}
+
+  /* Etiquetas laterales de anillo */
+  .ring-tag{position:absolute;display:flex;align-items:center;gap:8px;cursor:pointer;padding:8px 14px;border-radius:8px;border:2px solid;transition:all .2s;user-select:none;background:#fff;}
+  .ring-tag:hover{filter:brightness(0.95);transform:scale(1.03);}
+  .ring-tag.active{box-shadow:0 2px 12px rgba(0,0,0,0.15);}
+  .ring-tag.dimmed{opacity:0.35;}
+  .ring-tag-dot{width:12px;height:12px;border-radius:50%;flex-shrink:0;}
+  .ring-tag-body{display:flex;flex-direction:column;gap:1px;}
+  .ring-tag-title{font-family:'Rajdhani',sans-serif;font-size:13px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;line-height:1;}
+  .ring-tag-sub{font-family:'JetBrains Mono',monospace;font-size:9px;opacity:0.7;line-height:1;}
+  /* Línea conectora SVG */
+  .ring-connector{position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:1;}
+  /* Filtro de anillo activo */
+  .node.hidden{opacity:0.08;pointer-events:none;}
+
+  /* NODO */
+  .node{position:absolute;border-radius:50%;border:2px solid;display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;transition:all .2s;transform:translate(-50%,-50%);}
+  .node:hover{z-index:10;}
+  .node.selected{z-index:20;}
+
+  /* Tamaños por tipo — agrandados para mejor visibilidad */
+  .node.valvula{width:28px;height:28px;}
+  .node.valvula:hover{transform:translate(-50%,-50%) scale(1.25);}
+  .node.valvula.selected{transform:translate(-50%,-50%) scale(1.3);box-shadow:0 0 0 3px rgba(0,170,255,0.4);}
+  .node.rodillo{width:21px;height:21px;}
+  .node.rodillo:hover{transform:translate(-50%,-50%) scale(1.25);}
+  .node.rodillo.selected{transform:translate(-50%,-50%) scale(1.3);box-shadow:0 0 0 3px rgba(168,85,247,0.4);}
+  .node.poste{width:15px;height:15px;}
+  .node.poste:hover{transform:translate(-50%,-50%) scale(1.35);}
+  .node.poste.selected{transform:translate(-50%,-50%) scale(1.4);box-shadow:0 0 0 3px rgba(249,115,22,0.4);}
+
+  /* Colores estado */
+  .node.green{background:var(--green-bg);border-color:var(--green);}
+  .node.yellow{background:var(--yellow-bg);border-color:var(--yellow);}
+  .node.red{background:var(--red-bg);border-color:var(--red);}
+  .node.nodata{background:rgba(42,61,87,0.15);border-color:rgba(58,82,104,0.5);}
+
+  @keyframes pulse-red{0%,100%{box-shadow:0 0 0 0 rgba(239,68,68,0.5);}50%{box-shadow:0 0 0 5px rgba(239,68,68,0);}}
+  .node.red{animation:pulse-red 1.8s ease-in-out infinite;}
+  .node.red.selected{animation:none;}
+
+  .node-num{font-family:'JetBrains Mono',monospace;font-size:7px;font-weight:600;line-height:1;color:inherit;}
+  .node-fallas{font-family:'JetBrains Mono',monospace;font-size:9px;font-weight:700;line-height:1;margin-top:1px;color:inherit;}
+  .node.green .node-num,.node.green .node-fallas{color:var(--green);}
+  .node.yellow .node-num,.node.yellow .node-fallas{color:var(--yellow);}
+  .node.red .node-num,.node.red .node-fallas{color:var(--red);}
+  .node.nodata .node-num,.node.nodata .node-fallas{color:var(--text3);}
+
+  /* Tooltip */
+  .node-tooltip{position:absolute;background:var(--bg3);border:1px solid var(--border2);padding:4px 8px;border-radius:4px;font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--text);white-space:nowrap;pointer-events:none;z-index:50;display:none;transform:translate(-50%,-130%);}
+  .node:hover .node-tooltip{display:block;}
+
+  /* PANEL DERECHO */
+  .info-panel{background:var(--bg2);display:flex;flex-direction:column;overflow:hidden;}
+  .info-header{padding:14px 20px;border-bottom:1px solid var(--border);font-family:'Rajdhani',sans-serif;font-size:11px;font-weight:600;letter-spacing:2px;text-transform:uppercase;color:var(--text3);}
+  .empty-state{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;color:var(--text3);padding:40px;text-align:center;}
+  .empty-icon{width:44px;height:44px;border-radius:50%;border:1px dashed var(--border2);display:flex;align-items:center;justify-content:center;font-size:18px;}
+  .empty-state p{font-size:13px;line-height:1.6;}
+
+  .valve-detail{flex:1;overflow-y:auto;display:none;flex-direction:column;}
+  .valve-detail.active{display:flex;}
+
+  .detail-hero{padding:20px;border-bottom:1px solid var(--border);}
+  .ring-type-badge{display:inline-flex;align-items:center;gap:5px;font-family:'JetBrains Mono',monospace;font-size:9px;padding:2px 8px;border-radius:3px;margin-bottom:6px;border:1px solid;text-transform:uppercase;letter-spacing:1px;}
+  .ring-type-badge.valvula{background:rgba(0,170,255,0.1);color:var(--valvula);border-color:rgba(0,170,255,0.3);}
+  .ring-type-badge.rodillo{background:rgba(168,85,247,0.1);color:var(--rodillo);border-color:rgba(168,85,247,0.3);}
+  .ring-type-badge.poste{background:rgba(249,115,22,0.1);color:var(--poste);border-color:rgba(249,115,22,0.3);}
+
+  .status-badge{display:inline-flex;align-items:center;gap:6px;font-family:'JetBrains Mono',monospace;font-size:10px;padding:3px 10px;border-radius:3px;margin-bottom:10px;border:1px solid;}
+  .status-badge.green{background:var(--green-bg);color:var(--green);border-color:var(--green-border);}
+  .status-badge.yellow{background:var(--yellow-bg);color:var(--yellow);border-color:var(--yellow-border);}
+  .status-badge.red{background:var(--red-bg);color:var(--red);border-color:var(--red-border);}
+  .status-badge.nodata{background:var(--bg3);color:var(--text3);border-color:var(--border);}
+
+  .detail-name{font-family:'Rajdhani',sans-serif;font-size:24px;font-weight:700;color:#fff;line-height:1;margin-bottom:4px;}
+  .detail-sub{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--text3);}
+
+  .metrics-grid{display:grid;grid-template-columns:1fr 1fr;gap:1px;background:var(--border);border-bottom:1px solid var(--border);}
+  .metric-cell{background:var(--bg2);padding:14px 18px;}
+  .metric-label{font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;font-family:'Rajdhani',sans-serif;margin-bottom:4px;}
+  .metric-value{font-family:'JetBrains Mono',monospace;font-size:22px;font-weight:500;color:#fff;}
+  .metric-value.green{color:var(--green);}
+  .metric-value.yellow{color:var(--yellow);}
+  .metric-value.red{color:var(--red);}
+
+  .detail-body{padding:12px 20px;}
+  .detail-row{display:flex;justify-content:space-between;align-items:center;padding:7px 0;border-bottom:1px solid var(--border);gap:12px;}
+  .detail-row:last-child{border-bottom:none;}
+  .detail-key{color:var(--text2);font-size:12px;flex-shrink:0;}
+  .detail-val{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--text);text-align:right;}
+  .detail-val.green{color:var(--green);}
+  .detail-val.yellow{color:var(--yellow);}
+  .detail-val.red{color:var(--red);}
+
+  .avisos-section{padding:12px 20px;border-top:1px solid var(--border);flex:1;overflow-y:auto;}
+  .avisos-title{font-family:'Rajdhani',sans-serif;font-size:11px;font-weight:600;letter-spacing:2px;text-transform:uppercase;color:var(--text3);margin-bottom:10px;}
+  .aviso-item{padding:8px 10px;border-radius:5px;border:1px solid var(--border);margin-bottom:6px;background:var(--bg3);}
+  .aviso-tags{display:flex;gap:6px;margin-bottom:5px;flex-wrap:wrap;}
+  .aviso-tag{font-family:'JetBrains Mono',monospace;font-size:9px;font-weight:600;padding:2px 7px;border-radius:3px;letter-spacing:0.5px;}
+  .tag-aviso{background:rgba(0,170,255,0.12);color:var(--accent);border:1px solid rgba(0,170,255,0.25);}
+  .tag-orden{background:rgba(245,158,11,0.12);color:var(--yellow);border:1px solid rgba(245,158,11,0.25);}
+  .aviso-desc{font-size:12px;color:var(--text);line-height:1.5;margin-bottom:3px;}
+  .aviso-meta{font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--text3);}
+  .aviso-empty{font-size:12px;color:var(--text3);padding:8px 0;}
+
+  .summary-section{padding:12px 20px;border-top:1px solid var(--border);}
+  .summary-title{font-family:'Rajdhani',sans-serif;font-size:11px;font-weight:600;letter-spacing:2px;text-transform:uppercase;color:var(--text3);margin-bottom:8px;}
+  .summary-tabs{display:flex;gap:4px;margin-bottom:10px;}
+  .summary-tab{font-family:'JetBrains Mono',monospace;font-size:9px;padding:3px 8px;border-radius:3px;border:1px solid var(--border);color:var(--text3);cursor:pointer;transition:all .15s;}
+  .summary-tab.active.vl{background:rgba(0,170,255,0.1);border-color:rgba(0,170,255,0.4);color:var(--valvula);}
+  .summary-tab.active.ro{background:rgba(168,85,247,0.1);border-color:rgba(168,85,247,0.4);color:var(--rodillo);}
+  .summary-tab.active.po{background:rgba(249,115,22,0.1);border-color:rgba(249,115,22,0.4);color:var(--poste);}
+  .summary-list{display:flex;flex-direction:column;gap:4px;max-height:150px;overflow-y:auto;}
+  .summary-item{display:flex;align-items:center;gap:8px;padding:5px 8px;border-radius:4px;cursor:pointer;transition:background .15s;font-size:12px;}
+  .summary-item:hover{background:var(--bg3);}
+  .summary-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;}
+  .summary-dot.green{background:var(--green);}
+  .summary-dot.yellow{background:var(--yellow);}
+  .summary-dot.red{background:var(--red);}
+  .summary-name{flex:1;color:var(--text2);font-family:'JetBrains Mono',monospace;font-size:10px;}
+  .summary-count{font-family:'JetBrains Mono',monospace;font-size:10px;}
+  .summary-count.green{color:var(--green);}
+  .summary-count.yellow{color:var(--yellow);}
+  .summary-count.red{color:var(--red);}
+
+  .legend{display:flex;gap:20px;align-items:center;padding:10px 28px;border-top:1px solid var(--border);font-size:12px;color:var(--text2);background:var(--bg2);position:sticky;bottom:0;z-index:10;}
+  .legend-item{display:flex;align-items:center;gap:7px;}
+  .legend-dot{width:10px;height:10px;border-radius:50%;}
+
+  .toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(80px);background:var(--bg3);border:1px solid var(--border2);color:var(--text);padding:10px 20px;border-radius:6px;font-family:'JetBrains Mono',monospace;font-size:12px;z-index:999;transition:transform .3s ease;}
+  .toast.show{transform:translateX(-50%) translateY(0);}
+  .toast.success{border-color:var(--green-border);color:var(--green);}
+  .toast.error{border-color:var(--red-border);color:var(--red);}
+
+  ::-webkit-scrollbar{width:4px;}
+  ::-webkit-scrollbar-track{background:transparent;}
+  ::-webkit-scrollbar-thumb{background:var(--border2);border-radius:2px;}
+
+  /* Tema oscuro para el panel del círculo */
+  body.dark-panel .circle-panel{background:#0a0e14 !important;}
+  body.dark-panel .circle-panel .circle-title{color:var(--text3) !important;}
+  body.dark-panel .circle-panel .ring-label{color:var(--text2) !important;}
+  body.dark-panel .circle-panel .ring-label span{color:var(--text2) !important;}
+  body.dark-panel .ring-tag{background:#111720 !important;}
+  body.dark-panel .ring-tag-title{filter:brightness(1.3);}
+  body.dark-panel .ring-tag-sub{filter:brightness(1.1);}
+  body.dark-panel .node.nodata{background:rgba(42,61,87,0.35) !important;border-color:rgba(58,82,104,0.7) !important;}
+  /* Leyenda estado en oscuro */
+  body.dark-panel #legendPanel{background:#111720 !important;border-color:#1e2d42 !important;}
+  body.dark-panel #legendPanel span{color:#c8d8e8 !important;}
+  body.dark-panel #legendPanel .legend-state-label{color:#c8d8e8 !important;}
+  body.dark-panel #legendPanel .legend-state-sub{color:#7a92aa !important;}
+  body.dark-panel #legendPanel .legend-panel-title{color:#7a92aa !important;}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">
+    <span class="logo-monitor">MONITOREO</span>
+    <span class="logo-de">DE</span>
+    <span class="logo-llen">LLENADORAS</span>
+  </div>
+  <div class="divider"></div>
+  <button class="btn-llenadora ll1 active" id="btnLL1" onclick="switchLlenadora(1)">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:11px;height:11px;display:inline;vertical-align:middle;margin-right:4px"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+    LLENADORA 01
+  </button>
+  <button class="btn-llenadora ll2" id="btnLL2" onclick="switchLlenadora(2)">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:11px;height:11px;display:inline;vertical-align:middle;margin-right:4px"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+    LLENADORA 02
+  </button>
+  <div class="divider"></div>
+  <div class="ring-pill v"><div class="ring-dot"></div>VÁLVULAS</div>
+  <div class="ring-pill r"><div class="ring-dot"></div>RODILLOS</div>
+  <div class="ring-pill p"><div class="ring-dot"></div>POSTES</div>
+  <div class="divider"></div>
+  <div class="stat-pill green"><div class="dot"></div><span id="countGreen">—</span> OK</div>
+  <div class="stat-pill yellow"><div class="dot"></div><span id="countYellow">—</span> ALERTA</div>
+  <div class="stat-pill red"><div class="dot"></div><span id="countRed">—</span> CRÍTICO</div>
+  <button class="btn-sap" onclick="window.open('https://azuevp04.modelo.gmodelo.com.mx/irj/portal?NavigationTarget=navurl://334834ed11204abf6f9fb249edec621b&NavMode=10&sap-ie=EDGE','_blank')">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:13px;height:13px"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+    SAP
+  </button>
+  <button class="btn-update" onclick="triggerFileLoad()">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:15px;height:15px"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+    ACTUALIZAR DATA
+  </button>
+  <input type="file" id="fileInput" accept=".xlsx,.xlsm,.xls" style="display:none" onchange="loadExcel(this)">
+  <button id="btnTheme" onclick="toggleTheme()" title="Cambiar tema"
+    style="display:flex;align-items:center;gap:7px;font-family:'Rajdhani',sans-serif;font-size:12px;font-weight:700;letter-spacing:1px;text-transform:uppercase;padding:8px 14px;border-radius:6px;border:1px solid var(--border2);background:transparent;color:var(--text2);cursor:pointer;transition:all .2s;flex-shrink:0;">
+    <span id="themeIcon" style="font-size:15px;">☀️</span>
+    <span id="themeLabel">CLARO</span>
+  </button>
+</header>
+
+<div class="file-info">
+  <span>ARCHIVO:</span> BASE_MANTENIMIENTO.xlsm
+  <span style="margin:0 4px">|</span>
+  <span>HOJA:</span> Data → col Y (Válvulas) · col AE (Rodillos) · col AI (Postes)
+  <span style="margin:0 4px">|</span>
+  <span>ÚLTIMA ACTUALIZACIÓN:</span> <span id="lastUpdate">Sin cargar</span>
+  <span style="margin:0 4px">|</span>
+  <span>NUBE:</span> <span id="cloudStatus" style="color:var(--accent)">Conectando...</span>
+</div>
+
+<div class="main">
+  <!-- CÍRCULOS CONCÉNTRICOS -->
+  <div class="circle-panel">
+    <div class="circle-title">Distribución concéntrica — Válvulas · Rodillos · Postes (80 c/u)</div>
+    <div style="position:relative;display:inline-block;">
+    <div class="circle-wrapper" id="circleWrapper">
+      <!-- SVG guide rings -->
+      <svg class="ring-svg" viewBox="0 0 780 780">
+        <circle cx="390" cy="390" r="355" fill="none" stroke="rgba(0,170,255,0.3)" stroke-width="1.5" stroke-dasharray="4,6"/>
+        <circle cx="390" cy="390" r="283" fill="none" stroke="rgba(168,85,247,0.3)" stroke-width="1.5" stroke-dasharray="4,6"/>
+        <circle cx="390" cy="390" r="213" fill="none" stroke="rgba(249,115,22,0.3)" stroke-width="1.5" stroke-dasharray="4,6"/>
+      </svg>
+      <!-- SVG conectores para las etiquetas laterales -->
+      <svg class="ring-connector" id="ringConnectorSvg" viewBox="0 0 780 780"></svg>
+      <div class="circle-center">
+        <div class="circle-center-name">LLEN.</div>
+        <div class="circle-center-sub">MÁQ-LL-001</div>
+        <div class="circle-center-count" id="totalFallas">—</div>
+        <div class="circle-center-label" id="centerLabel">fallas totales</div>
+        <div id="centerSelected" style="font-family:'JetBrains Mono',monospace;font-size:8px;color:var(--text3);margin-top:2px;display:none;letter-spacing:0.5px;"></div>
+      </div>
+    </div>
+    <!-- Etiquetas laterales clickeables -->
+    <!-- VÁLVULAS: arriba-izquierda apuntando al anillo externo -->
+    <div class="ring-tag active" id="tagValvula" onclick="filterRing('valvula')"
+         style="top:18%;left:-148px;border-color:rgba(0,170,255,0.6);">
+      <div class="ring-tag-dot" style="background:#00aaff;"></div>
+      <div class="ring-tag-body">
+        <span class="ring-tag-title" style="color:#0077cc;">VÁLVULAS</span>
+        <span class="ring-tag-sub" style="color:#0077cc;">Anillo exterior · 80 pos.</span>
+      </div>
+    </div>
+    <!-- RODILLOS: izquierda-media apuntando al anillo medio -->
+    <div class="ring-tag active" id="tagRodillo" onclick="filterRing('rodillo')"
+         style="top:52%;left:-148px;border-color:rgba(168,85,247,0.6);">
+      <div class="ring-tag-dot" style="background:#a855f7;"></div>
+      <div class="ring-tag-body">
+        <span class="ring-tag-title" style="color:#8833cc;">RODILLOS</span>
+        <span class="ring-tag-sub" style="color:#8833cc;">Anillo medio · 80 pos.</span>
+      </div>
+    </div>
+    <!-- POSTES: derecha apuntando al anillo interno -->
+    <div class="ring-tag active" id="tagPoste" onclick="filterRing('poste')"
+         style="top:35%;right:-148px;border-color:rgba(249,115,22,0.6);">
+      <div class="ring-tag-dot" style="background:#f97316;"></div>
+      <div class="ring-tag-body">
+        <span class="ring-tag-title" style="color:#c75500;">POSTES</span>
+        <span class="ring-tag-sub" style="color:#c75500;">Anillo interior · 80 pos.</span>
+      </div>
+    </div>
+
+    <!-- LEYENDA DE ESTADO: arriba-derecha -->
+    <div id="legendPanel" style="position:absolute;top:0;right:-148px;background:#fff;border:2px solid #e2e8f0;border-radius:10px;padding:12px 14px;display:flex;flex-direction:column;gap:9px;box-shadow:0 2px 10px rgba(0,0,0,0.08);min-width:138px;">
+      <div class="legend-panel-title" style="font-family:'Rajdhani',sans-serif;font-size:10px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:#666;margin-bottom:2px;">ESTADO</div>
+      <!-- OK -->
+      <div style="display:flex;align-items:center;gap:9px;">
+        <div style="width:20px;height:20px;border-radius:50%;background:rgba(34,197,94,0.15);border:2px solid #22c55e;flex-shrink:0;"></div>
+        <div style="display:flex;flex-direction:column;gap:1px;">
+          <span class="legend-state-label" style="font-family:'Rajdhani',sans-serif;font-size:13px;font-weight:700;color:#16a34a;letter-spacing:1px;">OK</span>
+          <span class="legend-state-sub" style="font-family:'JetBrains Mono',monospace;font-size:9px;color:#555;">0 fallas</span>
+        </div>
+      </div>
+      <!-- ALERTA -->
+      <div style="display:flex;align-items:center;gap:9px;">
+        <div style="width:20px;height:20px;border-radius:50%;background:rgba(245,158,11,0.15);border:2px solid #f59e0b;flex-shrink:0;"></div>
+        <div style="display:flex;flex-direction:column;gap:1px;">
+          <span class="legend-state-label" style="font-family:'Rajdhani',sans-serif;font-size:13px;font-weight:700;color:#d97706;letter-spacing:1px;">ALERTA</span>
+          <span class="legend-state-sub" style="font-family:'JetBrains Mono',monospace;font-size:9px;color:#555;">1 – 2 fallas</span>
+        </div>
+      </div>
+      <!-- CRÍTICO -->
+      <div style="display:flex;align-items:center;gap:9px;">
+        <div style="width:20px;height:20px;border-radius:50%;background:rgba(239,68,68,0.15);border:2px solid #ef4444;flex-shrink:0;animation:pulse-red 1.8s ease-in-out infinite;"></div>
+        <div style="display:flex;flex-direction:column;gap:1px;">
+          <span class="legend-state-label" style="font-family:'Rajdhani',sans-serif;font-size:13px;font-weight:700;color:#dc2626;letter-spacing:1px;">CRÍTICO</span>
+          <span class="legend-state-sub" style="font-family:'JetBrains Mono',monospace;font-size:9px;color:#555;">3+ fallas</span>
+        </div>
+      </div>
+
+    </div>
+
+    </div><!-- fin wrapper relativo -->
+  </div>
+
+  <!-- PANEL INFO -->
+  <div class="info-panel">
+    <div class="info-header">Detalle de componente</div>
+    <div class="empty-state" id="emptyState">
+      <div class="empty-icon">⊙</div>
+      <p>Haz clic en cualquier<br>nodo del diagrama<br>para ver su detalle</p>
+      <p style="margin-top:12px;font-size:11px">Presiona <strong style="color:var(--accent)">ACTUALIZAR DATA</strong><br>para cargar desde Excel</p>
+    </div>
+    <div class="valve-detail" id="valveDetail"></div>
+    <div class="summary-section" id="summarySection" style="display:none">
+      <div class="summary-title">Con fallas</div>
+      <div class="summary-tabs">
+        <div class="summary-tab vl active" onclick="switchSummaryTab('valvula')">Válvulas</div>
+        <div class="summary-tab ro" onclick="switchSummaryTab('rodillo')">Rodillos</div>
+        <div class="summary-tab po" onclick="switchSummaryTab('poste')">Postes</div>
+      </div>
+      <div class="summary-list" id="summaryList"></div>
+    </div>
+  </div>
+</div>
+
+<div class="legend">
+  <div class="legend-item"><div class="legend-dot" style="background:var(--green)"></div>0 fallas — OK</div>
+  <div class="legend-item"><div class="legend-dot" style="background:var(--yellow)"></div>1-2 fallas — Alerta</div>
+  <div class="legend-item"><div class="legend-dot" style="background:var(--red)"></div>3+ fallas — Crítico</div>
+  <div style="margin-left:auto;font-size:11px;color:var(--text3)">BASE_MANTENIMIENTO.xlsm → Hoja Data</div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+// =============================================
+// CONFIGURACIÓN JSONBIN
+// =============================================
+const JSONBIN_KEY  = '$2a$10$/MU1sxM.cUMVo/iddc1jj.4acRhIELSK9BvGOVNV2KL611M2TS0Q6';
+const JSONBIN_BASE = 'https://api.jsonbin.io/v3/b';
+// BIN IDs separados por llenadora
+let BIN_IDS = {
+  1: localStorage.getItem('llen_bin_id_ll1') || localStorage.getItem('llen_bin_id') || '',
+  2: localStorage.getItem('llen_bin_id_ll2') || ''
+};
+let activeLlenadora = 1; // 1 o 2
+
+function switchLlenadora(num){
+  if(activeLlenadora === num) return;
+  activeLlenadora = num;
+  // Actualizar botones
+  document.getElementById('btnLL1').classList.toggle('active', num===1);
+  document.getElementById('btnLL2').classList.toggle('active', num===2);
+  // Actualizar texto centro
+  const centerSub = document.querySelector('.circle-center-sub');
+  if(centerSub) centerSub.textContent = num===1 ? 'MÁQ-LL-001' : 'MÁQ-LL-002';
+  const centerName = document.querySelector('.circle-center-name');
+  if(centerName) centerName.textContent = num===1 ? 'LLEN.1' : 'LLEN.2';
+  // Reset contador
+  document.getElementById('totalFallas').textContent = '—';
+  document.getElementById('centerLabel').textContent = 'fallas totales';
+  if(document.getElementById('centerSelected')) document.getElementById('centerSelected').style.display='none';
+  // Reset selección
+  selectedNode = null;
+  document.querySelectorAll('.node.selected').forEach(n=>n.classList.remove('selected'));
+  document.getElementById('emptyState').style.display='flex';
+  document.getElementById('valveDetail').classList.remove('active');
+  // Cargar datos de esa llenadora
+  cargarDesdeNube();
+  showToast(`Cambiado a Llenadora 0${num}`,'info');
+}
+
+async function guardarEnNube(payload) {
+  try {
+    document.getElementById('cloudStatus').textContent = 'Guardando...';
+    const binName = activeLlenadora===1 ? 'monitoreo-llenadora-01' : 'monitoreo-llenadora-02';
+    const lsKey   = activeLlenadora===1 ? 'llen_bin_id_ll1' : 'llen_bin_id_ll2';
+    if (!BIN_IDS[activeLlenadora]) {
+      const res = await fetch(JSONBIN_BASE, {
+        method: 'POST',
+        headers: { 'Content-Type':'application/json','X-Master-Key':JSONBIN_KEY,'X-Bin-Name':binName,'X-Bin-Private':'false' },
+        body: JSON.stringify(payload)
+      });
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      const data = await res.json();
+      BIN_IDS[activeLlenadora] = data.metadata.id;
+      localStorage.setItem(lsKey, BIN_IDS[activeLlenadora]);
+    } else {
+      const res = await fetch(`${JSONBIN_BASE}/${BIN_IDS[activeLlenadora]}`, {
+        method: 'PUT',
+        headers: { 'Content-Type':'application/json','X-Master-Key':JSONBIN_KEY },
+        body: JSON.stringify(payload)
+      });
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+    }
+    document.getElementById('cloudStatus').textContent = `✓ LL0${activeLlenadora} Publicado`;
+    showToast(`✓ Llenadora 0${activeLlenadora} publicada en nube`,'success');
+  } catch(err) {
+    document.getElementById('cloudStatus').textContent = 'Error al guardar';
+    showToast('Error al guardar en nube: '+err.message,'error');
+  }
+}
+
+async function cargarDesdeNube() {
+  try {
+    document.getElementById('cloudStatus').textContent = 'Conectando...';
+    const lsKey = activeLlenadora===1 ? 'llen_bin_id_ll1' : 'llen_bin_id_ll2';
+    const binId = BIN_IDS[activeLlenadora] || localStorage.getItem(lsKey);
+    if (!binId) { document.getElementById('cloudStatus').textContent = 'Sin data aún'; return; }
+    const res = await fetch(`${JSONBIN_BASE}/${binId}/latest`, {
+      headers: { 'X-Master-Key':JSONBIN_KEY,'X-Bin-Meta':'false' }
+    });
+    if (!res.ok) { document.getElementById('cloudStatus').textContent = 'Error '+res.status; return; }
+    const payload = await res.json();
+    if (!payload || !payload.valvulas) { document.getElementById('cloudStatus').textContent = 'Sin data aún'; return; }
+    valvulas  = payload.valvulas  || [];
+    rodillos  = payload.rodillos  || [];
+    postes    = payload.postes    || [];
+    avisosData= payload.avisosData|| [];
+    renderCircle();
+    document.getElementById('lastUpdate').textContent = payload.fechaActualizacion || '—';
+    document.getElementById('cloudStatus').textContent = `✓ LL0${activeLlenadora} Actualizado`;
+    showToast(`✓ Llenadora 0${activeLlenadora} · `+(payload.fechaActualizacion||''),'success');
+  } catch(err) {
+    document.getElementById('cloudStatus').textContent = 'Sin conexión';
+    console.error('JSONbin:', err);
+  }
+}
+
+// =============================================
+// DATOS EN MEMORIA
+// =============================================
+const TOTAL = 80;
+let valvulas  = [];
+let rodillos  = [];
+let postes    = [];
+let avisosData= [];
+
+function initData() {
+  const ll = activeLlenadora;
+  valvulas = []; rodillos = []; postes = [];
+  for(let i=1;i<=TOTAL;i++){
+    valvulas.push({id:`LL${ll}VAL_${i}`,  fallas:0, loaded:false});
+    rodillos.push({id:`LL${ll}ROD_${i}`,  fallas:0, loaded:false});
+    postes.push(  {id:`LL${ll}POSTE_${i}`,fallas:0, loaded:false});
+  }
+}
+initData();
+
+// =============================================
+// RENDER
+// =============================================
+const CX=390, CY=390;
+const R_VAL=355, R_ROD=283, R_POS=213;
+
+function getEstado(f,loaded){
+  if(!loaded) return 'nodata';
+  if(f===0)   return 'green';
+  if(f<=2)    return 'yellow';   // 1 o 2 fallas → Alerta
+  return 'red';                   // 3+ fallas → Crítico
+}
+function getLabel(f,loaded){
+  if(!loaded) return 'SIN DATA';
+  if(f===0)   return 'SIN FALLAS';
+  if(f<=2)    return 'ALERTA';
+  return 'CRÍTICO';
+}
+
+let selectedNode = null; // {tipo, idx}
+let activeFilter = null; // 'valvula' | 'rodillo' | 'poste' | null (todos)
+
+function filterRing(tipo){
+  // Si ya está activo, desactivar filtro (mostrar todo)
+  if(activeFilter === tipo){
+    activeFilter = null;
+  } else {
+    activeFilter = tipo;
+    // Si hay un nodo seleccionado de otro tipo, limpiar selección
+    if(selectedNode && selectedNode.tipo !== tipo){
+      selectedNode = null;
+      document.getElementById('emptyState').style.display='flex';
+      document.getElementById('valveDetail').classList.remove('active');
+    }
+  }
+  applyFilter();
+}
+
+function applyFilter(){
+  const tipos = ['valvula','rodillo','poste'];
+  tipos.forEach(t=>{
+    const tag = document.getElementById('tag'+t.charAt(0).toUpperCase()+t.slice(1));
+    document.querySelectorAll(`.node.${t}`).forEach(n=>{
+      if(!activeFilter || activeFilter===t){
+        n.classList.remove('hidden');
+      } else {
+        n.classList.add('hidden');
+      }
+    });
+    if(tag){
+      if(!activeFilter){
+        tag.classList.remove('dimmed');
+        tag.classList.add('active');
+      } else if(activeFilter===t){
+        tag.classList.remove('dimmed');
+        tag.classList.add('active');
+        tag.style.boxShadow='0 3px 16px rgba(0,0,0,0.2)';
+      } else {
+        tag.classList.add('dimmed');
+        tag.classList.remove('active');
+        tag.style.boxShadow='';
+      }
+    }
+  });
+  // Resetear box shadow al desactivar filtro
+  if(!activeFilter){
+    tipos.forEach(t=>{
+      const tag = document.getElementById('tag'+t.charAt(0).toUpperCase()+t.slice(1));
+      if(tag) tag.style.boxShadow='';
+    });
+  }
+}
+
+function renderCircle(){
+  const wrapper = document.getElementById('circleWrapper');
+  wrapper.querySelectorAll('.node').forEach(n=>n.remove());
+
+  const rings = [
+    {arr:valvulas, r:R_VAL, tipo:'valvula', cls:'valvula'},
+    {arr:rodillos, r:R_ROD, tipo:'rodillo', cls:'rodillo'},
+    {arr:postes,   r:R_POS, tipo:'poste',   cls:'poste'}
+  ];
+
+  rings.forEach(({arr, r, tipo, cls})=>{
+    arr.forEach((item, i)=>{
+      const angle = (i/arr.length)*2*Math.PI - Math.PI/2;
+      const x = CX + r*Math.cos(angle);
+      const y = CY + r*Math.sin(angle);
+      const estado = getEstado(item.fallas, item.loaded);
+
+      const el = document.createElement('div');
+      el.className = `node ${cls} ${estado}`;
+      el.id = `node_${tipo}_${i}`;
+      el.style.left = x+'px';
+      el.style.top  = y+'px';
+
+      // Número y fallas dentro de cada nodo
+      if(cls==='valvula'){
+        el.innerHTML=`<div class="node-num">${(i+1).toString().padStart(2,'0')}</div><div class="node-fallas">${item.loaded?item.fallas:'—'}</div>`;
+      } else if(cls==='rodillo'){
+        el.innerHTML=`<div class="node-num" style="font-size:8px;font-weight:700">${(i+1).toString().padStart(2,'0')}</div>`;
+      } else if(cls==='poste'){
+        el.innerHTML=`<div class="node-num" style="font-size:6px;font-weight:700;line-height:1">${(i+1).toString().padStart(2,'0')}</div>`;
+      }
+
+      el.onclick = ()=> selectNode(tipo, i);
+      wrapper.appendChild(el);
+    });
+  });
+
+  updateStats();
+  updateSummary();
+  applyFilter();
+}
+
+function selectNode(tipo, i){
+  document.querySelectorAll('.node.selected').forEach(n=>n.classList.remove('selected'));
+  const el = document.getElementById(`node_${tipo}_${i}`);
+  if(el) el.classList.add('selected');
+  selectedNode = {tipo, i};
+
+  const arr = tipo==='valvula'?valvulas:tipo==='rodillo'?rodillos:postes;
+  const item = arr[i];
+  const estado = getEstado(item.fallas, item.loaded);
+  const label  = getLabel(item.fallas, item.loaded);
+
+  // Filtrar avisos por tipo
+  const colKey = tipo==='valvula'?'etiqVal':tipo==='rodillo'?'etiqRod':'etiqPos';
+  const normalizar = s=>String(s||'').trim().toUpperCase().replace(/[^A-Z0-9]/g,'');
+  const idNorm = normalizar(item.id);
+  // Extraer solo el número al final del ID para comparación de respaldo
+  const idNumMatch = item.id.match(/(\d+)$/);
+  const idNum = idNumMatch ? parseInt(idNumMatch[1]) : -1;
+  const avisos = avisosData.filter(a=>{
+    const etiq = a[colKey];
+    if(!etiq) return false;
+    const etiqNorm = normalizar(etiq);
+    if(!etiqNorm) return false;
+    // 1. Match exacto normalizado
+    if(etiqNorm === idNorm) return true;
+    // 2. Match por número final (ej: LL1ROD_16 vs RODILLO_16 vs ROD16)
+    if(idNum > 0){
+      const etiqNumMatch = etiq.match(/(\d+)$/);
+      if(etiqNumMatch && parseInt(etiqNumMatch[1]) === idNum) return true;
+    }
+    // 3. Match si la etiqueta ES solo un número que coincide con el número del ID
+    if(idNum > 0 && /^\d+$/.test(etiq.trim()) && parseInt(etiq.trim()) === idNum) return true;
+    // 4. Match si uno contiene al otro, pero verificar que el número final sea exacto
+    if(etiqNorm.length > 3 && idNorm.length > 3){
+      if(idNorm.includes(etiqNorm) || etiqNorm.includes(idNorm)){
+        // Verificar que no sea un falso positivo (ej: ROD1 dentro de ROD16)
+        const eNum = etiq.match(/(\d+)$/); const iNum = item.id.match(/(\d+)$/);
+        if(eNum && iNum && parseInt(eNum[1]) === parseInt(iNum[1])) return true;
+      }
+    }
+    return false;
+  });
+
+  let avisosHTML='';
+  if(avisos.length===0){
+    console.log(`[Avisos] ID:"${item.id}" norm:"${normalizar(item.id)}" colKey:"${colKey}" avisosData:${avisosData.length}`);
+    if(avisosData.length>0) console.log("[Avisos] Muestra etiquetas:", avisosData.slice(0,5).map(a=>a[colKey]));
+    avisosHTML=`<div class="aviso-empty">Sin avisos registrados para este componente${avisosData.length>0?` <span style="font-size:10px;color:var(--text3)">(ID buscado: ${item.id})</span>`:``}.</div>`;
+  } else {
+    avisos.forEach(a=>{
+      avisosHTML+=`<div class="aviso-item">
+        <div class="aviso-tags">
+          ${a.aviso?`<span class="aviso-tag tag-aviso">Aviso: ${a.aviso}</span>`:''}
+          ${a.orden?`<span class="aviso-tag tag-orden">OT: ${a.orden}</span>`:''}
+        </div>
+        <div class="aviso-desc">${a.desc||'—'}</div>
+        <div class="aviso-meta">${a.denom?a.denom+' · ':''}${a.fecha||''}</div>
+      </div>`;
+    });
+  }
+
+  const tipoLabel = tipo==='valvula'?'VÁLVULA':tipo==='rodillo'?'RODILLO':'POSTE';
+
+  // Actualizar centro del círculo con el componente seleccionado
+  const centerEl = document.getElementById('totalFallas');
+  const centerLabelEl = document.getElementById('centerLabel');
+  const centerSelectedEl = document.getElementById('centerSelected');
+  const numDisplay = (i+1).toString().padStart(2,'0');
+  const tipoShort = tipo==='valvula'?'VÁL':tipo==='rodillo'?'ROD':'POS';
+  centerEl.textContent = numDisplay;
+  centerLabelEl.textContent = tipoShort + ' #' + (i+1);
+  centerSelectedEl.style.display = 'block';
+  centerSelectedEl.textContent = item.id;
+
+  document.getElementById('emptyState').style.display='none';
+  const detail = document.getElementById('valveDetail');
+  detail.classList.add('active');
+  detail.innerHTML=`
+    <div class="detail-hero">
+      <div class="ring-type-badge ${tipo}">${tipoLabel} — ANILLO ${tipo==='valvula'?'EXTERIOR':tipo==='rodillo'?'MEDIO':'INTERIOR'}</div>
+      <div class="status-badge ${estado}">
+        <div style="width:5px;height:5px;border-radius:50%;background:currentColor;display:inline-block;margin-right:4px"></div>
+        ${label}
+      </div>
+      <div class="detail-name">${item.id}</div>
+      <div class="detail-sub">Posición ${i+1} de ${TOTAL}</div>
+    </div>
+    <div class="metrics-grid">
+      <div class="metric-cell">
+        <div class="metric-label">Fallas</div>
+        <div class="metric-value ${estado}">${item.loaded?item.fallas:'—'}</div>
+      </div>
+      <div class="metric-cell">
+        <div class="metric-label">Estado</div>
+        <div class="metric-value ${estado}" style="font-size:14px">${label}</div>
+      </div>
+    </div>
+    <div class="detail-body">
+      <div class="detail-row"><span class="detail-key">ID</span><span class="detail-val">${item.id}</span></div>
+      <div class="detail-row"><span class="detail-key">Tipo</span><span class="detail-val">${tipoLabel}</span></div>
+      <div class="detail-row"><span class="detail-key">Posición</span><span class="detail-val">${i+1} / ${TOTAL}</span></div>
+      <div class="detail-row"><span class="detail-key">Fallas</span><span class="detail-val ${estado}">${item.loaded?item.fallas:'Sin datos'}</span></div>
+      <div class="detail-row"><span class="detail-key">Semáforo</span><span class="detail-val ${estado}">${label}</span></div>
+      <div class="detail-row"><span class="detail-key">Avisos</span><span class="detail-val">${avisos.length}</span></div>
+    </div>
+    <div class="avisos-section">
+      <div class="avisos-title">Descripción de avisos (hoja Data)</div>
+      ${avisosHTML}
+    </div>
+  `;
+}
+
+function updateStats(){
+  const todos = [...valvulas,...rodillos,...postes];
+  const loaded = todos.filter(v=>v.loaded);
+  document.getElementById('countGreen').textContent  = loaded.filter(v=>v.fallas===0).length;
+  document.getElementById('countYellow').textContent = loaded.filter(v=>v.fallas>0&&v.fallas<=2).length;
+  document.getElementById('countRed').textContent    = loaded.filter(v=>v.fallas>=3).length;
+  const total = loaded.reduce((s,v)=>s+v.fallas,0);
+  // Solo restaurar el centro si no hay nodo seleccionado
+  if(!selectedNode){
+    document.getElementById('totalFallas').textContent = loaded.length>0?total:'—';
+    document.getElementById('centerLabel').textContent = 'fallas totales';
+    document.getElementById('centerSelected').style.display='none';
+  }
+}
+
+let activeSummaryTab = 'valvula';
+function switchSummaryTab(tipo){
+  activeSummaryTab = tipo;
+  document.querySelectorAll('.summary-tab').forEach(t=>t.classList.remove('active'));
+  const map={valvula:'vl',rodillo:'ro',poste:'po'};
+  const tab = document.querySelector(`.summary-tab.${map[tipo]}`);
+  if(tab){tab.classList.add('active');}
+  renderSummaryList();
+}
+function renderSummaryList(){
+  const arr = activeSummaryTab==='valvula'?valvulas:activeSummaryTab==='rodillo'?rodillos:postes;
+  const conFallas = arr.filter(v=>v.loaded&&v.fallas>0).sort((a,b)=>b.fallas-a.fallas);
+  const sl = document.getElementById('summaryList');
+  if(conFallas.length===0){
+    sl.innerHTML=`<div style="font-size:12px;color:var(--text3);padding:8px 0">Sin fallas en este grupo</div>`;
+    return;
+  }
+  sl.innerHTML = conFallas.map(v=>{
+    const idx = arr.indexOf(v);
+    const e = getEstado(v.fallas,true);
+    return `<div class="summary-item" onclick="selectNode('${activeSummaryTab}',${idx})">
+      <div class="summary-dot ${e}"></div>
+      <span class="summary-name">${v.id}</span>
+      <span class="summary-count ${e}">${v.fallas} falla${v.fallas!==1?'s':''}</span>
+    </div>`;
+  }).join('');
+}
+function updateSummary(){
+  const todos=[...valvulas,...rodillos,...postes];
+  const hayFallas=todos.some(v=>v.loaded&&v.fallas>0);
+  document.getElementById('summarySection').style.display=hayFallas?'block':'none';
+  renderSummaryList();
+}
+
+// =============================================
+// CARGAR EXCEL
+// =============================================
+function triggerFileLoad(){
+  showToast('Selecciona BASE_MANTENIMIENTO.xlsm...','info');
+  document.getElementById('fileInput').click();
+}
+
+function loadExcel(input){
+  const file=input.files[0];
+  if(!file) return;
+  const reader=new FileReader();
+  reader.onload=async function(e){
+    try{
+      const data=new Uint8Array(e.target.result);
+      const wb=XLSX.read(data,{type:'array',cellNF:false,cellStyles:false});
+
+      // ===== HOJA TABLAS =====
+      // Estructura según llenadora:
+      // LL1: B(VAL_LL1)+C(FALLAS)  H(ROD_LL1)+I(FALLAS)  N(POSTE_LL1)+O(FALLAS)
+      // LL2: E(VAL_LL2)+F(FALLAS)  K(ROD_LL2)+L(FALLAS)  Q(POSTE_LL2)+R(FALLAS)
+      const LL = activeLlenadora; // 1 o 2
+      const llTag = `LL${LL}`; // "LL1" o "LL2"
+
+      const sheetTablas=wb.SheetNames.find(s=>s.trim().toLowerCase()==='tablas')||
+                        wb.SheetNames.find(s=>s.trim().toLowerCase().includes('tabla'));
+      if(!sheetTablas){ showToast('No encontré hoja "Tablas"','error'); return; }
+
+      const rawT=XLSX.utils.sheet_to_json(wb.Sheets[sheetTablas],{header:1,defval:'',blankrows:false});
+
+      // Buscar la fila de encabezados dinámicamente (hasta fila 5)
+      let tRow=0;
+      for(let r=0;r<Math.min(rawT.length,5);r++){
+        const row=rawT[r];
+        const hasHeader=row.some(c=>{
+          const v=String(c||'').toUpperCase().replace(/[^A-Z0-9]/g,'');
+          return v.includes('LLENADORA')||v.includes('ROD')||v.includes('POSTE')||v.includes('VALVU');
+        });
+        if(hasHeader){ tRow=r; break; }
+      }
+
+      // Detectar columnas por encabezado — priorizar columnas que contengan llTag (LL1 o LL2)
+      const headerRow=rawT[tRow]||[];
+      let colVName=-1,colVFall=-1,colRName=-1,colRFall=-1,colPName=-1,colPFall=-1;
+      for(let c=0;c<headerRow.length;c++){
+        const h=String(headerRow[c]||'').toUpperCase().replace(/[^A-Z0-9]/g,'');
+        // Válvula: buscar columna que incluya VALVU o LLENADORA y el tag de llenadora
+        if(colVName===-1 && (h.includes('VALVU')||h.includes('LLENADORA')) && h.includes(llTag)) colVName=c;
+        if(h==='FALLAS' && colVName!==-1 && colVFall===-1) colVFall=c;
+        // Rodillo: buscar ROD + llTag
+        if(colRName===-1 && h.includes('ROD') && h.includes(llTag)) colRName=c;
+        if(h==='FALLAS' && colRName!==-1 && colRFall===-1 && c>colVFall) colRFall=c;
+        // Poste: buscar POSTE + llTag
+        if(colPName===-1 && h.includes('POSTE') && h.includes(llTag)) colPName=c;
+        if(h==='FALLAS' && colPName!==-1 && colPFall===-1 && c>colRFall) colPFall=c;
+      }
+      // Fallback por posición fija según llenadora
+      // LL1: B=1,C=2 / H=7,I=8 / N=13,O=14
+      // LL2: E=4,F=5 / K=10,L=11 / Q=16,R=17
+      if(LL===1){
+        if(colVName===-1) colVName=1;  if(colVFall===-1) colVFall=2;
+        if(colRName===-1) colRName=7;  if(colRFall===-1) colRFall=8;
+        if(colPName===-1) colPName=13; if(colPFall===-1) colPFall=14;
+      } else {
+        if(colVName===-1) colVName=4;  if(colVFall===-1) colVFall=5;
+        if(colRName===-1) colRName=10; if(colRFall===-1) colRFall=11;
+        if(colPName===-1) colPName=16; if(colPFall===-1) colPFall=17;
+      }
+      console.log(`[Tablas LL${LL}] V:${colVName}+${colVFall} R:${colRName}+${colRFall} P:${colPName}+${colPFall}`);
+
+      const mapVal={}, mapRod={}, mapPos={};
+      for(let r=tRow+1;r<rawT.length;r++){
+        const row=rawT[r];
+        if(!row||row.length===0) continue;
+        const vName=String(row[colVName]||'').trim();
+        if(vName){ mapVal[vName]=Math.max(0,parseInt(Number(row[colVFall]))||0); }
+        const rName=String(row[colRName]||'').trim();
+        if(rName){ mapRod[rName]=Math.max(0,parseInt(Number(row[colRFall]))||0); }
+        const pName=String(row[colPName]||'').trim();
+        if(pName){ mapPos[pName]=Math.max(0,parseInt(Number(row[colPFall]))||0); }
+      }
+
+      // ===== HOJA DATA → avisos (col A=aviso, col N=orden, col P=desc, col V=fecha) =====
+      avisosData=[];
+      const sheetData=wb.SheetNames.find(s=>s.trim().toLowerCase()==='data')||
+                      wb.SheetNames.find(s=>s.trim().toLowerCase().includes('dat'));
+      if(sheetData){
+        const rawD=XLSX.utils.sheet_to_json(wb.Sheets[sheetData],{header:1,defval:'',blankrows:false});
+        // Encontrar fila encabezado
+        let dRow=0;
+        let colAviso=0,colOrden=13,colDesc=14,colFecha=21,colDenom=-1;
+        // Detectar columnas de etiqueta en hoja Data según llenadora activa
+        // LL1: Y=Valvula LL1(col24), AC=Rodillo LL1(col28), AG=Poste LL1(col32)
+        // LL2: Z=Valvula LL2(col25), AD=Rodillo LL2(col29), AH=Poste LL2(col33)
+        let colValvula=-1, colRodillo=-1, colPoste=-1;
+        for(let r=0;r<Math.min(rawD.length,10);r++){
+          const row=rawD[r];
+          for(let c=0;c<row.length;c++){
+            const cell=String(row[c]||'').trim().normalize('NFD').replace(/[\u0300-\u036f]/g,'').toUpperCase();
+            if(cell==='AVISO'||cell.startsWith('AVISO'))         { colAviso=c; dRow=r; }
+            if(cell==='ORDEN'||cell.includes('ORDEN'))           { colOrden=c; }
+            if(cell==='DESCRIPCION'||cell.startsWith('DESCRIP')) { colDesc=c; }
+            if(cell.includes('DENOMINA'))                        { colDenom=c; }
+            if(cell.includes('CREADO')||cell.includes('FECHA'))  { colFecha=c; }
+            // Válvula: buscar "VALVULA LL1" o "VALVULA LL2" según llenadora activa
+            if(cell.includes('VALVULA') && cell.includes(llTag))  colValvula=c;
+            // Rodillo: "RODILLO LL1" o "RODILLO LL2"
+            if(cell.includes('RODILLO') && cell.includes(llTag))  colRodillo=c;
+            // Poste: "POSTE LL1" o "POSTE LL2"
+            if(cell.includes('POSTE') && cell.includes(llTag))    colPoste=c;
+          }
+        }
+        // Fallback posición fija por llenadora:
+        // LL1: Y=24, AC=28, AG=32  |  LL2: Z=25, AD=29, AH=33
+        if(LL===1){
+          if(colValvula===-1) colValvula=24;
+          if(colRodillo===-1) colRodillo=28;
+          if(colPoste===-1)   colPoste=32;
+        } else {
+          if(colValvula===-1) colValvula=25;
+          if(colRodillo===-1) colRodillo=29;
+          if(colPoste===-1)   colPoste=33;
+        }
+        console.log(`[Data LL${LL}] Aviso:${colAviso} Desc:${colDesc} Val:${colValvula} Rod:${colRodillo} Pos:${colPoste}`);
+        for(let r=dRow+1;r<rawD.length;r++){
+          const row=rawD[r];
+          if(!row||row.length===0) continue;
+          const vVal=String(row[colValvula]||'').trim();
+          const vRod=String(row[colRodillo]||'').trim();
+          const vPos=String(row[colPoste]||'').trim();
+          if(!vVal&&!vRod&&!vPos) continue;
+          const desc=String(row[colDesc]||'').trim();
+          const aviso=String(row[colAviso]||'').trim();
+          const orden=String(row[colOrden]||'').trim();
+          const denom=colDenom!==-1?String(row[colDenom]||'').trim():'';
+          const fecha=String(row[colFecha]||'').trim();
+          if(desc){ avisosData.push({etiqVal:vVal,etiqRod:vRod,etiqPos:vPos,desc,aviso,orden,denom,fecha}); }
+        }
+      }
+
+      // Asignar fallas a los arrays
+      function asignarFallas(arr, mapa){
+        // Reset completo
+        arr.forEach(v=>{v.fallas=0; v.loaded=false;});
+        const norm = s => String(s||'').toUpperCase().replace(/[^A-Z0-9]/g,'');
+        let secuencial = 0; // fallback secuencial si no hay match
+        Object.entries(mapa).forEach(([key, cnt])=>{
+          if(!key) return;
+          // 1. Match exacto normalizado
+          let idx = arr.findIndex(v => norm(v.id) === norm(key));
+          // 2. Match por número al final
+          if(idx === -1){
+            const nm = key.match(/(\d+)$/);
+            if(nm){
+              const n = parseInt(nm[1]);
+              idx = arr.findIndex(v => { const vm = v.id.match(/(\d+)$/); return vm && parseInt(vm[1]) === n; });
+            }
+          }
+          // 3. Fallback secuencial (slot libre)
+          if(idx === -1){
+            while(secuencial < TOTAL && arr[secuencial].loaded) secuencial++;
+            if(secuencial < TOTAL) idx = secuencial++;
+          }
+          if(idx !== -1 && idx < TOTAL){
+            arr[idx].id    = key;
+            arr[idx].fallas= cnt;
+            arr[idx].loaded= true;
+          }
+        });
+        // Forzar loaded=true en todos los slots restantes → aparecen verde (0 fallas conocidas)
+        arr.forEach(v=>{ v.loaded = true; });
+      }
+
+      initData();
+      asignarFallas(valvulas, mapVal);
+      asignarFallas(rodillos, mapRod);
+      asignarFallas(postes,   mapPos);
+
+      renderCircle();
+      const ahora=new Date().toLocaleString('es-PE',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit',second:'2-digit'});
+      document.getElementById('lastUpdate').textContent=ahora;
+      if(selectedNode) selectNode(selectedNode.tipo, selectedNode.i);
+
+      const cv=Object.keys(mapVal).length, cr=Object.keys(mapRod).length, cp=Object.keys(mapPos).length;
+      showToast(`✓ ${cv} válvulas · ${cr} rodillos · ${cp} postes · ${avisosData.length} avisos`,'success');
+      await guardarEnNube({valvulas,rodillos,postes,avisosData,fechaActualizacion:ahora});
+    }catch(err){
+      showToast('Error: '+err.message,'error');
+      console.error(err);
+    }
+  };
+  reader.readAsArrayBuffer(file);
+  input.value='';
+}
+
+function toggleTheme(){
+  const isDark = document.body.classList.toggle('dark-panel');
+  document.getElementById('themeIcon').textContent = isDark ? '🌙' : '☀️';
+  document.getElementById('themeLabel').textContent = isDark ? 'OSCURO' : 'CLARO';
+  localStorage.setItem('panel_theme', isDark ? 'dark' : 'light');
+}
+
+// Restaurar tema guardado al cargar
+(function(){
+  if(localStorage.getItem('panel_theme')==='dark'){
+    document.body.classList.add('dark-panel');
+    // Se actualiza el botón cuando el DOM esté listo
+    window.addEventListener('load',()=>{
+      const icon = document.getElementById('themeIcon');
+      const label = document.getElementById('themeLabel');
+      if(icon) icon.textContent='🌙';
+      if(label) label.textContent='OSCURO';
+    });
+  }
+})();
+
+function showToast(msg,tipo='info'){
+  const t=document.getElementById('toast');
+  t.textContent=msg; t.className=`toast ${tipo} show`;
+  setTimeout(()=>t.classList.remove('show'),4500);
+}
+
+renderCircle();
+
+window.addEventListener('load',()=>{
+  cargarDesdeNube();
+});
+</script>
+</body>
+</html>
